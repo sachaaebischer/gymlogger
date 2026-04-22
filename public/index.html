@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gym Logger</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #0f172a; }
+    .note-badge { background: #1e293b; border: 1px solid #334155; }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+  </style>
+</head>
+<body class="text-slate-100 min-h-screen p-4 md:p-8">
+  <div class="max-w-2xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div class="text-center py-4">
+      <h1 class="text-3xl font-bold text-slate-100">🏋️ Gym Logger</h1>
+      <p class="text-slate-400 text-sm mt-1">Track your lifts, your way</p>
+    </div>
+
+    <!-- Log Workout Card -->
+    <div class="bg-slate-800 rounded-xl p-5 shadow-lg border border-slate-700">
+      <h2 class="text-xl font-semibold text-slate-100 mb-4">Log Workout</h2>
+      
+      <!-- Date -->
+      <div class="mb-4">
+        <label class="block text-slate-400 text-sm mb-1">Date</label>
+        <input type="date" id="workout-date" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100">
+      </div>
+
+      <!-- Exercise Selector -->
+      <div class="mb-4">
+        <label class="block text-slate-400 text-sm mb-1">Exercise</label>
+        <select id="exercise-select" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100">
+          <option value="">— Select or create exercise —</option>
+        </select>
+        <input type="text" id="new-exercise-input" placeholder="Or type new exercise name here" 
+               class="w-full mt-2 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 hidden">
+      </div>
+
+      <!-- Exercise Note (shown when selected exercise has note) -->
+      <div id="exercise-note-box" class="mb-4 note-badge rounded-lg p-3 text-sm text-slate-300 hidden">
+        <span class="text-slate-400 font-medium">📝 Note: </span>
+        <span id="exercise-note-text"></span>
+      </div>
+
+      <!-- Weight & Reps Row -->
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <label class="block text-slate-400 text-sm mb-1">Weight (kg)</label>
+          <input type="number" id="weight-input" placeholder="e.g. 60" step="0.5" min="0"
+                 class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100">
+        </div>
+        <div>
+          <label class="block text-slate-400 text-sm mb-1">Reps</label>
+          <input type="number" id="reps-input" placeholder="e.g. 10" min="0"
+                 class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100">
+        </div>
+      </div>
+
+      <!-- Set Note -->
+      <div class="mb-4">
+        <label class="block text-slate-400 text-sm mb-1">Note (optional)</label>
+        <input type="text" id="set-note-input" placeholder="e.g. slow eccentric, felt strong..."
+               class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100">
+      </div>
+
+      <!-- Add Button -->
+      <button id="add-set-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-lg transition">
+        + Add Set
+      </button>
+
+      <!-- Today's Sets -->
+      <div id="todays-sets" class="mt-6">
+        <h3 class="text-slate-400 text-sm font-medium mb-2">Today's Sets</h3>
+        <div id="sets-list" class="space-y-2">
+          <p class="text-slate-500 text-sm">No sets logged yet.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Exercise Library Card -->
+    <div class="bg-slate-800 rounded-xl p-5 shadow-lg border border-slate-700">
+      <h2 class="text-xl font-semibold text-slate-100 mb-4">Exercise Library</h2>
+      
+      <div id="library-list" class="space-y-2 mb-4">
+        <p class="text-slate-500 text-sm">Loading...</p>
+      </div>
+
+      <!-- Add new exercise -->
+      <div class="border-t border-slate-700 pt-4">
+        <p class="text-slate-400 text-sm mb-2">Add new exercise</p>
+        <input type="text" id="new-ex-name" placeholder="Exercise name"
+               class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 mb-2">
+        <input type="text" id="new-ex-note" placeholder="Note (e.g. seat position)"
+               class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 mb-2">
+        <button id="add-ex-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 rounded-lg transition">
+          + Add to Library
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const API = '';
+    
+    // State
+    let exercises = [];
+    let todaysSets = [];
+
+    // Init
+    async function init() {
+      // Set default date to today
+      document.getElementById('workout-date').value = new Date().toISOString().split('T')[0];
+      
+      await loadExercises();
+      await loadTodaySets();
+      renderExercises();
+      renderTodaySets();
+    }
+
+    async function loadExercises() {
+      try {
+        const res = await fetch(API + '/api/exercises');
+        exercises = await res.json();
+      } catch (e) {
+        exercises = [];
+      }
+    }
+
+    async function loadTodaySets() {
+      try {
+        const res = await fetch(API + '/api/sessions');
+        const all = await res.json();
+        const today = new Date().toISOString().split('T')[0];
+        todaysSets = all.filter(s => s.date === today);
+      } catch (e) {
+        todaysSets = [];
+      }
+    }
+
+    function renderExercises() {
+      const select = document.getElementById('exercise-select');
+      select.innerHTML = '<option value="">— Select or create exercise —</option>';
+      
+      exercises.forEach(ex => {
+        const opt = document.createElement('option');
+        opt.value = ex.id;
+        opt.textContent = ex.name + (ex.note ? ' 📝' : '');
+        select.appendChild(opt);
+      });
+      
+      // Also add "new" option if there are existing exercises
+      if (exercises.length > 0) {
+        const newOpt = document.createElement('option');
+        newOpt.value = '__new__';
+        newOpt.textContent = '— + Create new exercise —';
+        select.appendChild(newOpt);
+      }
+
+      const libraryList = document.getElementById('library-list');
+      if (exercises.length === 0) {
+        libraryList.innerHTML = '<p class="text-slate-500 text-sm">No exercises yet. Add some below!</p>';
+      } else {
+        libraryList.innerHTML = exercises.map(ex => `
+          <div class="bg-slate-900 rounded-lg p-3 flex justify-between items-start gap-2">
+            <div>
+              <span class="text-slate-100 font-medium">${escapeHtml(ex.name)}</span>
+              ${ex.note ? `<span class="text-slate-400 text-sm block mt-1">📝 ${escapeHtml(ex.note)}</span>` : ''}
+            </div>
+            <button onclick="deleteExercise('${ex.id}')" class="text-slate-500 hover:text-red-400 text-xs shrink-0">✕</button>
+          </div>
+        `).join('');
+      }
+    }
+
+    function renderTodaySets() {
+      const list = document.getElementById('sets-list');
+      if (todaysSets.length === 0) {
+        list.innerHTML = '<p class="text-slate-500 text-sm">No sets logged yet.</p>';
+      } else {
+        list.innerHTML = todaysSets.map(set => `
+          <div class="bg-slate-900 rounded-lg p-3 flex justify-between items-center">
+            <div>
+              <span class="text-slate-100 font-medium">${escapeHtml(set.exercise)}</span>
+              <span class="text-indigo-400 ml-2">${set.weight}kg × ${set.reps}</span>
+              ${set.set_note ? `<span class="text-slate-400 text-sm block">${escapeHtml(set.set_note)}</span>` : ''}
+            </div>
+            <span class="text-slate-500 text-xs">${set.time}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Exercise selection
+    document.getElementById('exercise-select').addEventListener('change', async (e) => {
+      const val = e.target.value;
+      const newInput = document.getElementById('new-exercise-input');
+      const noteBox = document.getElementById('exercise-note-box');
+      
+      if (val === '__new__') {
+        newInput.classList.remove('hidden');
+        noteBox.classList.add('hidden');
+      } else if (val) {
+        newInput.classList.add('hidden');
+        const ex = exercises.find(ex => ex.id === val);
+        if (ex && ex.note) {
+          document.getElementById('exercise-note-text').textContent = ex.note;
+          noteBox.classList.remove('hidden');
+        } else {
+          noteBox.classList.add('hidden');
+        }
+      } else {
+        newInput.classList.add('hidden');
+        noteBox.classList.add('hidden');
+      }
+    });
+
+    // Add Set
+    document.getElementById('add-set-btn').addEventListener('click', async () => {
+      const select = document.getElementById('exercise-select');
+      const val = select.value;
+      const newInput = document.getElementById('new-exercise-input');
+      const date = document.getElementById('workout-date').value;
+      const weight = parseFloat(document.getElementById('weight-input').value);
+      const reps = parseInt(document.getElementById('reps-input').value);
+      const setNote = document.getElementById('set-note-input').value.trim();
+
+      let exerciseName = '';
+
+      if (val === '__new__') {
+        exerciseName = newInput.value.trim();
+        if (!exerciseName) return alert('Enter exercise name');
+      } else if (val) {
+        const ex = exercises.find(ex => ex.id === val);
+        exerciseName = ex ? ex.name : '';
+      } else {
+        exerciseName = newInput.value.trim();
+      }
+
+      if (!exerciseName) return alert('Select or enter an exercise');
+      if (!weight && weight !== 0) return alert('Enter weight');
+      if (!reps && reps !== 0) return alert('Enter reps');
+
+      // If it's a new exercise, create it
+      if (val === '__new__' || (!val && newInput.value.trim())) {
+        try {
+          await fetch(API + '/api/exercises', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: exerciseName })
+          });
+          await loadExercises();
+          renderExercises();
+        } catch (e) {
+          // Continue anyway
+        }
+      }
+
+      // Log the set
+      try {
+        await fetch(API + '/api/log-set', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, exercise: exerciseName, weight, reps, set_note: setNote })
+        });
+
+        // Clear inputs
+        document.getElementById('weight-input').value = '';
+        document.getElementById('reps-input').value = '';
+        document.getElementById('set-note-input').value = '';
+        newInput.value = '';
+        newInput.classList.add('hidden');
+        
+        await loadTodaySets();
+        renderTodaySets();
+      } catch (e) {
+        alert('Failed to log set: ' + e.message);
+      }
+    });
+
+    // Add exercise to library
+    document.getElementById('add-ex-btn').addEventListener('click', async () => {
+      const name = document.getElementById('new-ex-name').value.trim();
+      const note = document.getElementById('new-ex-note').value.trim();
+      if (!name) return alert('Enter exercise name');
+
+      try {
+        await fetch(API + '/api/exercises', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, note })
+        });
+        document.getElementById('new-ex-name').value = '';
+        document.getElementById('new-ex-note').value = '';
+        await loadExercises();
+        renderExercises();
+      } catch (e) {
+        alert('Failed to add exercise: ' + e.message);
+      }
+    });
+
+    // Delete exercise
+    window.deleteExercise = async (id) => {
+      if (!confirm('Delete this exercise?')) return;
+      try {
+        await fetch(API + '/api/exercises/' + id, { method: 'DELETE' });
+        await loadExercises();
+        renderExercises();
+      } catch (e) {
+        alert('Failed to delete: ' + e.message);
+      }
+    };
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    init();
+  </script>
+</body>
+</html>
