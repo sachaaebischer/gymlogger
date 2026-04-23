@@ -33,17 +33,25 @@
       <!-- Exercise Selector -->
       <div class="mb-4">
         <label class="block text-slate-400 text-sm mb-1">Exercise</label>
-        <select id="exercise-select" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100">
-          <option value="">— Select or create exercise —</option>
-        </select>
-        <input type="text" id="new-exercise-input" placeholder="Or type new exercise name here" 
-               class="w-full mt-2 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 hidden">
+        <input type="text" id="exercise-search" placeholder="Search or create exercise..." 
+               class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100">
+        <div id="exercise-dropdown" class="mt-1 bg-slate-900 border border-slate-600 rounded-lg max-h-48 overflow-y-auto hidden z-10 relative">
+          <!-- Exercise items injected here -->
+        </div>
       </div>
 
-      <!-- Exercise Note (shown when selected exercise has note) -->
-      <div id="exercise-note-box" class="mb-4 note-badge rounded-lg p-3 text-sm text-slate-300 hidden">
-        <span class="text-slate-400 font-medium">📝 Note: </span>
-        <span id="exercise-note-text"></span>
+      <!-- Selected Exercise Note Editor -->
+      <div id="exercise-note-editor" class="mb-4 note-badge rounded-lg p-3 hidden">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-slate-400 text-sm font-medium">📝 Exercise Note</span>
+          <span id="selected-ex-name" class="text-indigo-400 text-sm font-medium"></span>
+        </div>
+        <input type="text" id="exercise-note-input" placeholder="e.g. seat position, grip width, measurement type..."
+               class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 text-sm">
+        <div class="flex gap-2 mt-2">
+          <button id="save-ex-note-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium py-1.5 rounded-lg transition">Save Note</button>
+          <button id="clear-ex-btn" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-medium py-1.5 rounded-lg transition">Clear</button>
+        </div>
       </div>
 
       <!-- Weight & Reps Row -->
@@ -110,15 +118,14 @@
     // State
     let exercises = [];
     let todaysSets = [];
+    let selectedExerciseId = null;
+    let selectedExerciseName = null;
 
     // Init
     async function init() {
-      // Set default date to today
       document.getElementById('workout-date').value = new Date().toISOString().split('T')[0];
-      
       await loadExercises();
       await loadTodaySets();
-      renderExercises();
       renderTodaySets();
     }
 
@@ -143,24 +150,6 @@
     }
 
     function renderExercises() {
-      const select = document.getElementById('exercise-select');
-      select.innerHTML = '<option value="">— Select or create exercise —</option>';
-      
-      exercises.forEach(ex => {
-        const opt = document.createElement('option');
-        opt.value = ex.id;
-        opt.textContent = ex.name + (ex.note ? ' 📝' : '');
-        select.appendChild(opt);
-      });
-      
-      // Also add "new" option if there are existing exercises
-      if (exercises.length > 0) {
-        const newOpt = document.createElement('option');
-        newOpt.value = '__new__';
-        newOpt.textContent = '— + Create new exercise —';
-        select.appendChild(newOpt);
-      }
-
       const libraryList = document.getElementById('library-list');
       if (exercises.length === 0) {
         libraryList.innerHTML = '<p class="text-slate-500 text-sm">No exercises yet. Add some below!</p>';
@@ -177,104 +166,160 @@
       }
     }
 
+    function filterExercises(query) {
+      query = query.toLowerCase().trim();
+      if (!query) return [];
+      return exercises.filter(ex => ex.name.toLowerCase().includes(query));
+    }
+
+    function renderExerciseDropdown(query) {
+      const dropdown = document.getElementById('exercise-dropdown');
+      const results = filterExercises(query);
+
+      if (results.length === 0 && query.length > 0) {
+        dropdown.innerHTML = `
+          <div class="px-3 py-2 text-sm text-indigo-400 cursor-pointer hover:bg-slate-800" onclick="createExerciseFromSearch('${escapeHtml(query)}')">
+            + Create "${escapeHtml(query)}"
+          </div>
+        `;
+        dropdown.classList.remove('hidden');
+      } else if (results.length > 0) {
+        dropdown.innerHTML = results.slice(0, 10).map(ex => `
+          <div class="px-3 py-2 text-sm text-slate-100 cursor-pointer hover:bg-slate-800 flex justify-between items-center" onclick="selectExercise('${ex.id}', '${escapeHtml(ex.name)}')">
+            <span>${escapeHtml(ex.name)}</span>
+            ${ex.note ? '<span class="text-slate-500 text-xs">📝</span>' : ''}
+          </div>
+        `).join('');
+        dropdown.classList.remove('hidden');
+      } else {
+        dropdown.innerHTML = `
+          <div class="px-3 py-2 text-sm text-slate-500">Type to search or create...</div>
+        `;
+        dropdown.classList.remove('hidden');
+      }
+    }
+
+    window.selectExercise = function(id, name) {
+      selectedExerciseId = id;
+      selectedExerciseName = name;
+      const ex = exercises.find(e => e.id === id);
+
+      document.getElementById('exercise-search').value = name;
+      document.getElementById('exercise-dropdown').classList.add('hidden');
+      document.getElementById('selected-ex-name').textContent = name;
+      document.getElementById('exercise-note-input').value = ex && ex.note ? ex.note : '';
+      document.getElementById('exercise-note-editor').classList.remove('hidden');
+    };
+
+    window.createExerciseFromSearch = async function(name) {
+      try {
+        const res = await fetch(API + '/api/exercises', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const newEx = await res.json();
+        await loadExercises();
+        selectExercise(newEx.id, newEx.name);
+        renderExercises();
+      } catch (e) {
+        alert('Failed to create exercise: ' + e.message);
+      }
+    };
+
+    window.clearExerciseSelection = function() {
+      selectedExerciseId = null;
+      selectedExerciseName = null;
+      document.getElementById('exercise-search').value = '';
+      document.getElementById('exercise-note-editor').classList.add('hidden');
+      document.getElementById('exercise-dropdown').classList.add('hidden');
+    };
+
+    document.getElementById('exercise-search').addEventListener('input', (e) => {
+      const query = e.target.value;
+      if (!query) {
+        document.getElementById('exercise-dropdown').classList.add('hidden');
+        return;
+      }
+      renderExerciseDropdown(query);
+    });
+
+    document.getElementById('exercise-search').addEventListener('focus', (e) => {
+      if (e.target.value) renderExerciseDropdown(e.target.value);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#exercise-search') && !e.target.closest('#exercise-dropdown')) {
+        document.getElementById('exercise-dropdown').classList.add('hidden');
+      }
+    });
+
     function renderTodaySets() {
       const list = document.getElementById('sets-list');
       if (todaysSets.length === 0) {
         list.innerHTML = '<p class="text-slate-500 text-sm">No sets logged yet.</p>';
       } else {
-        list.innerHTML = todaysSets.map(set => `
-          <div class="bg-slate-900 rounded-lg p-3 flex justify-between items-center">
+        list.innerHTML = todaysSets.map((set, idx) => `
+          <div class="bg-slate-900 rounded-lg p-3 flex justify-between items-center gap-2">
             <div>
               <span class="text-slate-100 font-medium">${escapeHtml(set.exercise)}</span>
               <span class="text-indigo-400 ml-2">${set.weight}kg × ${set.reps}</span>
               ${set.set_note ? `<span class="text-slate-400 text-sm block">${escapeHtml(set.set_note)}</span>` : ''}
             </div>
-            <span class="text-slate-500 text-xs">${set.time}</span>
+            <div class="flex items-center gap-2">
+              <span class="text-slate-500 text-xs">${set.time}</span>
+              <button onclick="deleteSet(${idx})" class="text-slate-500 hover:text-red-400 text-xs">✕</button>
+            </div>
           </div>
         `).join('');
       }
     }
 
-    // Exercise selection
-    document.getElementById('exercise-select').addEventListener('change', async (e) => {
-      const val = e.target.value;
-      const newInput = document.getElementById('new-exercise-input');
-      const noteBox = document.getElementById('exercise-note-box');
-      
-      if (val === '__new__') {
-        newInput.classList.remove('hidden');
-        noteBox.classList.add('hidden');
-      } else if (val) {
-        newInput.classList.add('hidden');
-        const ex = exercises.find(ex => ex.id === val);
-        if (ex && ex.note) {
-          document.getElementById('exercise-note-text').textContent = ex.note;
-          noteBox.classList.remove('hidden');
-        } else {
-          noteBox.classList.add('hidden');
-        }
-      } else {
-        newInput.classList.add('hidden');
-        noteBox.classList.add('hidden');
+    // Save exercise note
+    document.getElementById('save-ex-note-btn').addEventListener('click', async () => {
+      if (!selectedExerciseId) return;
+      const note = document.getElementById('exercise-note-input').value.trim();
+      try {
+        await fetch(API + '/api/exercises/' + selectedExerciseId, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ note })
+        });
+        await loadExercises();
+        renderExercises();
+        // Update the note display
+        const ex = exercises.find(e => e.id === selectedExerciseId);
+        if (ex) ex.note = note;
+      } catch (e) {
+        alert('Failed to save note: ' + e.message);
       }
     });
 
+    // Clear exercise selection
+    document.getElementById('clear-ex-btn').addEventListener('click', clearExerciseSelection);
+
     // Add Set
     document.getElementById('add-set-btn').addEventListener('click', async () => {
-      const select = document.getElementById('exercise-select');
-      const val = select.value;
-      const newInput = document.getElementById('new-exercise-input');
       const date = document.getElementById('workout-date').value;
       const weight = parseFloat(document.getElementById('weight-input').value);
       const reps = parseInt(document.getElementById('reps-input').value);
       const setNote = document.getElementById('set-note-input').value.trim();
 
-      let exerciseName = '';
-
-      if (val === '__new__') {
-        exerciseName = newInput.value.trim();
-        if (!exerciseName) return alert('Enter exercise name');
-      } else if (val) {
-        const ex = exercises.find(ex => ex.id === val);
-        exerciseName = ex ? ex.name : '';
-      } else {
-        exerciseName = newInput.value.trim();
-      }
-
-      if (!exerciseName) return alert('Select or enter an exercise');
+      if (!selectedExerciseName) return alert('Select an exercise from the list');
       if (!weight && weight !== 0) return alert('Enter weight');
       if (!reps && reps !== 0) return alert('Enter reps');
 
-      // If it's a new exercise, create it
-      if (val === '__new__' || (!val && newInput.value.trim())) {
-        try {
-          await fetch(API + '/api/exercises', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: exerciseName })
-          });
-          await loadExercises();
-          renderExercises();
-        } catch (e) {
-          // Continue anyway
-        }
-      }
-
-      // Log the set
       try {
         await fetch(API + '/api/log-set', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date, exercise: exerciseName, weight, reps, set_note: setNote })
+          body: JSON.stringify({ date, exercise: selectedExerciseName, weight, reps, set_note: setNote })
         });
 
-        // Clear inputs
         document.getElementById('weight-input').value = '';
         document.getElementById('reps-input').value = '';
         document.getElementById('set-note-input').value = '';
-        newInput.value = '';
-        newInput.classList.add('hidden');
-        
+        clearExerciseSelection();
         await loadTodaySets();
         renderTodaySets();
       } catch (e) {
@@ -310,6 +355,18 @@
         await fetch(API + '/api/exercises/' + id, { method: 'DELETE' });
         await loadExercises();
         renderExercises();
+      } catch (e) {
+        alert('Failed to delete: ' + e.message);
+      }
+    };
+
+    // Delete set
+    window.deleteSet = async (idx) => {
+      if (!confirm('Delete this set?')) return;
+      try {
+        await fetch(API + '/api/sessions/' + idx, { method: 'DELETE' });
+        await loadTodaySets();
+        renderTodaySets();
       } catch (e) {
         alert('Failed to delete: ' + e.message);
       }

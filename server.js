@@ -138,6 +138,28 @@ app.get('/api/sessions', (req, res) => {
   res.json(rows.reverse()); // Most recent first
 });
 
+app.delete('/api/sessions/:index', (req, res) => {
+  const idx = parseInt(req.params.index);
+  if (isNaN(idx) || idx < 0) {
+    return res.status(400).json({ error: 'Invalid index' });
+  }
+  
+  const sessionsPath = path.join(LOGS_DIR, 'sessions.csv');
+  const content = fs.readFileSync(sessionsPath, 'utf8');
+  const lines = content.trim().split('\n');
+  if (lines.length <= 1) return res.status(404).json({ error: 'No sessions' });
+  
+  // API returns newest first, so index 0 = last line in file
+  const fileIndex = lines.length - 1 - idx;
+  if (fileIndex < 1 || fileIndex >= lines.length) {
+    return res.status(404).json({ error: 'Index out of range' });
+  }
+  
+  lines.splice(fileIndex, 1);
+  fs.writeFileSync(sessionsPath, lines.join('\n') + '\n');
+  res.json({ ok: true });
+});
+
 app.listen(PORT, () => {
   console.log(`Gym logger running at http://localhost:${PORT}`);
 });
