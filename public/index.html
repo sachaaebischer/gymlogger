@@ -241,6 +241,24 @@
       }
     };
 
+    window.createExercise = async function(name) {
+      if (!name.trim()) return;
+      try {
+        const res = await fetch(API + '/api/exercises', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const newEx = await res.json();
+        await loadExercises();
+        showExerciseNote(newEx.id);
+        renderExerciseList(document.getElementById('exercise-search').value);
+        renderExercises();
+      } catch (e) {
+        alert('Failed to create exercise: ' + e.message);
+      }
+    };
+
     // Edit note button
     document.getElementById('edit-ex-note-btn').addEventListener('click', () => {
       const ex = exercises.find(e => e.id === selectedExerciseId);
@@ -297,6 +315,12 @@
       } else {
         renderExerciseList(query);
       }
+    });
+
+    document.getElementById('exercise-search').addEventListener('focus', (e) => {
+      const query = e.target.value;
+      renderExerciseList(query || '');
+      document.getElementById('exercise-list').classList.remove('hidden');
     });
 
     function renderTodaySets() {
