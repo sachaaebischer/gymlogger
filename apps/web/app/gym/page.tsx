@@ -24,7 +24,9 @@ export default async function GymIndexPage() {
   await seedTemplatesFromMesocycle(userId);
   const activeTemplates = await getActiveTemplates(userId);
 
-  const hasSession = recent.some((s) => s.date === today);
+  const todaySession = recent.find((s) => s.date === today);
+  const hasSession = !!todaySession;
+  const sessionFinished = !!todaySession?.finished_at;
   const progress = mesocycle ? getMesocycleProgress(mesocycle) : null;
   const showEnded = mesoStatus.ended;
   const showWarning = mesoStatus.active && (mesoStatus.daysLeft ?? 99) <= 7 && !showEnded;
@@ -126,7 +128,7 @@ export default async function GymIndexPage() {
       )}
 
       {/* Start training */}
-      <GymStartButton today={today} hasSession={hasSession} activeTemplates={activeTemplates} />
+      <GymStartButton today={today} hasSession={hasSession} sessionFinished={sessionFinished} activeTemplates={activeTemplates} />
     </div>
   );
 }

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getGymDayData, readSettings, getSessionAnalysis } from "@/lib/data-db";
 import { GymLogger } from "@/app/components/GymLogger";
-import { AIInsightCard } from "@/app/components/AIInsightCard";
 import { BackButton } from "@/app/components/BackButton";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +31,6 @@ export default async function GymDatePage({
   ]);
 
   const isFinished = !!gymSession.finished_at;
-
   const analysis = isFinished && settings.ai_session_analysis_enabled
     ? await getSessionAnalysis(userId, date)
     : null;
@@ -53,10 +51,8 @@ export default async function GymDatePage({
         defaultRestSecs={settings.rest_timer_default}
         templateId={templateId}
         aiAnalysisEnabled={settings.ai_session_analysis_enabled}
+        initialAnalysis={analysis}
       />
-      {isFinished && settings.ai_session_analysis_enabled && (
-        <div className="mt-4 pb-28"><AIInsightCard date={date} initialAnalysis={analysis} /></div>
-      )}
     </div>
   );
 }

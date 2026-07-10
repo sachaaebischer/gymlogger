@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getAllGymSessions } from "@/lib/data-db";
 import Link from "next/link";
+import { SessionDeleteButton } from "@/app/components/SessionDeleteButton";
 
 export const dynamic = "force-dynamic";
 
@@ -69,20 +70,22 @@ export default async function HistoryPage() {
                 );
                 const sets = s.exercises.reduce((sum, ex) => sum + ex.sets.filter((st) => st.done).length, 0);
                 return (
-                  <Link
-                    key={s.date}
-                    href={`/gym/${s.date}`}
-                    className="flex items-center justify-between rounded-2xl bg-card px-4 py-3 active:bg-surface transition"
-                  >
-                    <div>
-                      <div className="font-semibold">{s.name}</div>
-                      <div className="text-xs text-muted-fg">{s.date}</div>
-                    </div>
-                    <div className="text-right text-xs text-muted-fg shrink-0 ml-3">
-                      <div>{sets} sets</div>
-                      {vol > 0 && <div className="text-accent font-semibold">{vol.toFixed(1)}t</div>}
-                    </div>
-                  </Link>
+                  <div key={s.date} className="flex items-center gap-1 rounded-2xl bg-card pr-1 active:bg-surface transition">
+                    <Link
+                      href={`/gym/${s.date}`}
+                      className="flex flex-1 items-center justify-between px-4 py-3 min-w-0"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-semibold truncate">{s.name}</div>
+                        <div className="text-xs text-muted">{s.date}</div>
+                      </div>
+                      <div className="text-right text-xs text-muted shrink-0 ml-3">
+                        <div>{sets} sets</div>
+                        {vol > 0 && <div className="text-accent font-semibold">{vol.toFixed(1)}t</div>}
+                      </div>
+                    </Link>
+                    <SessionDeleteButton date={s.date} />
+                  </div>
                 );
               })}
             </div>

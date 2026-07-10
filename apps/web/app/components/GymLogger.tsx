@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { GymSession, GymSet } from "@coach/lib";
 import type { ExerciseCatalogItem } from "@coach/lib";
 import type { LastPerf } from "@/lib/data";
+import { AIInsightCard } from "@/app/components/AIInsightCard";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -162,10 +163,10 @@ function TrainingSetInputs({
   onField: (field: "weight" | "reps", value: string) => void;
 }) {
   return (
-    <div className="flex items-end justify-center gap-4">
-      <div className="flex flex-col items-center gap-1.5">
+    <div className="flex items-end justify-center gap-3 w-full px-2">
+      <div className="flex flex-col items-center gap-1.5 flex-1 max-w-[10rem]">
         <input
-          className="h-32 w-44 rounded-2xl border-2 border-cardborder bg-card text-center text-6xl font-black tabular-nums outline-none focus:border-accent caret-accent"
+          className="h-28 w-full rounded-2xl border-2 border-cardborder bg-card text-center text-5xl font-black tabular-nums outline-none focus:border-accent caret-accent"
           inputMode="decimal"
           defaultValue={set.weight !== null && set.weight !== undefined ? String(set.weight) : ""}
           placeholder="—"
@@ -173,10 +174,10 @@ function TrainingSetInputs({
         />
         <span className="text-xs text-muted">kg</span>
       </div>
-      <span className="text-3xl text-muted mb-6">×</span>
-      <div className="flex flex-col items-center gap-1.5">
+      <span className="text-2xl text-muted mb-7 shrink-0">×</span>
+      <div className="flex flex-col items-center gap-1.5 flex-1 max-w-[7rem]">
         <input
-          className="h-32 w-32 rounded-2xl border-2 border-cardborder bg-card text-center text-6xl font-black tabular-nums outline-none focus:border-accent caret-accent"
+          className="h-28 w-full rounded-2xl border-2 border-cardborder bg-card text-center text-5xl font-black tabular-nums outline-none focus:border-accent caret-accent"
           inputMode="numeric"
           defaultValue={set.reps !== null && set.reps !== undefined ? String(set.reps) : ""}
           placeholder="—"
@@ -343,12 +344,12 @@ function TrainingMode({
         <div className="text-xs text-muted mb-0.5">
           Exercise {activeExIdx + 1} of {totalEx}
         </div>
-        <div className="relative flex items-center justify-center">
-          <h2 className="text-2xl font-bold">{ex?.name}</h2>
+        <div className="flex items-center justify-center gap-2 min-w-0">
+          <h2 className="text-2xl font-bold truncate">{ex?.name}</h2>
           {ex && (
             <a
               href={`/gym/exercises/${encodeURIComponent(ex.name)}`}
-              className="absolute -right-10 flex h-8 w-8 items-center justify-center rounded-xl text-base text-muted hover:bg-white/5"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-base text-muted hover:bg-white/5"
               title="Exercise history"
             >
 
@@ -796,6 +797,108 @@ function TemplateUpdatePrompt({
 }
 
 /* ─────────────────── Main GymLogger ─────────────────────────── */
+/* ─────────────────── Finished screen ───────────────────────── */
+function FinishedScreen({
+  session,
+  aiAnalysisEnabled,
+  initialAnalysis,
+}: {
+  session: GymSession;
+  aiAnalysisEnabled: boolean;
+  initialAnalysis: unknown;
+}) {
+  const totalSets = session.exercises.reduce(
+    (sum, ex) => sum + ex.sets.filter((s) => s.done).length,
+    0
+  );
+  const totalVolumeTonnes = session.exercises.reduce(
+    (sum, ex) =>
+      sum +
+      ex.sets
+        .filter((s) => s.done && s.weight != null && s.reps != null)
+        .reduce((a, s) => a + (s.weight! * s.reps!) / 1000, 0),
+    0
+  );
+  const duration =
+    session.started_at && session.finished_at
+      ? Math.round(
+          (new Date(session.finished_at).getTime() - new Date(session.started_at).getTime()) / 60000
+        )
+      : null;
+
+  return (
+    <div className="space-y-6 pb-32">
+      {/* Hero */}
+      <div className="flex flex-col items-center gap-4 py-10 text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-good/20">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00C980" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+        <div>
+          <h2 className="text-3xl font-black">Session complete</h2>
+          <div className="text-sm text-muted mt-1">{session.name}</div>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="card">
+        <div className={`grid gap-4 ${totalVolumeTonnes > 0 && duration ? "grid-cols-3" : totalVolumeTonnes > 0 || duration ? "grid-cols-2" : "grid-cols-1"}`}>
+          <div className="text-center">
+            <div className="text-3xl font-black text-accent">{totalSets}</div>
+            <div className="text-xs text-muted mt-1">sets done</div>
+          </div>
+          {totalVolumeTonnes > 0 && (
+            <div className="text-center">
+              <div className="text-3xl font-black text-accent">{totalVolumeTonnes.toFixed(1)}t</div>
+              <div className="text-xs text-muted mt-1">volume</div>
+            </div>
+          )}
+          {duration != null && (
+            <div className="text-center">
+              <div className="text-3xl font-black text-accent">{duration}</div>
+              <div className="text-xs text-muted mt-1">minutes</div>
+            </div>
+          )}
+        </div>
+
+        {session.exercises.length > 0 && (
+          <div className="mt-4 space-y-0 divide-y divide-cardborder border-t border-cardborder pt-4">
+            {session.exercises.map((ex, i) => {
+              const done = ex.sets.filter((s) => s.done);
+              const best = done
+                .filter((s) => s.weight != null)
+                .map((s) => `${s.weight}×${s.reps}`)
+                .slice(-1)[0];
+              return (
+                <div key={i} className="flex items-center justify-between py-2.5 text-sm">
+                  <span className="font-medium truncate mr-3">{ex.name}</span>
+                  <div className="flex items-center gap-2 shrink-0 text-muted text-xs">
+                    {best && <span className="font-mono">{best}</span>}
+                    <span>{done.length}/{ex.sets.length} sets</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* AI analysis */}
+      {aiAnalysisEnabled && (
+        <AIInsightCard
+          date={session.date}
+          initialAnalysis={initialAnalysis as Parameters<typeof AIInsightCard>[0]["initialAnalysis"]}
+        />
+      )}
+
+      <Link href="/gym" className="btn w-full text-center block">
+        Back to home
+      </Link>
+    </div>
+  );
+}
+
 export function GymLogger({
   initial,
   lastPerf,
@@ -803,6 +906,7 @@ export function GymLogger({
   defaultRestSecs = 120,
   templateId,
   aiAnalysisEnabled = true,
+  initialAnalysis = null,
 }: {
   initial: GymSession;
   lastPerf: LastPerf;
@@ -810,9 +914,11 @@ export function GymLogger({
   defaultRestSecs?: number;
   templateId?: string;
   aiAnalysisEnabled?: boolean;
+  initialAnalysis?: unknown;
 }) {
   const router = useRouter();
   const [session, setSession] = useState<GymSession>(initial);
+  const [isComplete, setIsComplete] = useState(!!initial.finished_at);
   const [save, setSave] = useState<SaveState>("idle");
   const [templatePrompt, setTemplatePrompt] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -871,6 +977,7 @@ export function GymLogger({
       if (!res.ok) throw new Error(await res.text());
       if (finalize) {
         setSession(payload);
+        setIsComplete(true);
         if (aiAnalysisEnabled) {
           void fetch("/api/ai/analyze-session", {
             method: "POST",
@@ -884,7 +991,6 @@ export function GymLogger({
           const newNames = payload.exercises.map((e) => e.name).join("|");
           if (origNames !== newNames) setTemplatePrompt(true);
         }
-        router.refresh();
       }
       setSave("saved");
       setIsDirty(false);
@@ -1025,6 +1131,25 @@ export function GymLogger({
     save === "saved" ? "Saved ✓" :
     save === "error" ? "Error — retry" :
     isDirty ? "Save" : "Saved ✓";
+
+  if (isComplete) {
+    return (
+      <>
+        <FinishedScreen
+          session={session}
+          aiAnalysisEnabled={aiAnalysisEnabled}
+          initialAnalysis={initialAnalysis}
+        />
+        {templatePrompt && templateId && (
+          <TemplateUpdatePrompt
+            session={session}
+            templateId={templateId}
+            onClose={() => setTemplatePrompt(false)}
+          />
+        )}
+      </>
+    );
+  }
 
   if (mode === "training") {
     return (
