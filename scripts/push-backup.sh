@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e
-PAT="$(cat ~/.openclaw/github_pat 2>/dev/null || echo '')"
+PAT="$(cat ~/.config/coach/github_pat 2>/dev/null || echo '')"
 if [ -z "$PAT" ]; then
-  echo 'Error: no PAT found. Put it in ~/.openclaw/github_pat'
+  echo 'Error: no PAT found. Put it in ~/.config/coach/github_pat'
   exit 1
 fi
 
