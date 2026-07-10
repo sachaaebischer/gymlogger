@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  background: #080808;
+  color: #EFEFEF;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  /* Card — depth via background, no border */
+  .card {
+    @apply rounded-3xl bg-card p-5;
+  }
+
+  /* Primary CTA — lime, full width */
+  .btn {
+    @apply flex w-full items-center justify-center rounded-[18px] bg-accent px-6 font-black text-bg transition-all active:scale-[0.96];
+    height: 3.75rem;
+    font-size: 1.05rem;
+    letter-spacing: -0.025em;
+  }
+
+  /* Ghost / secondary */
+  .btn-ghost {
+    @apply flex items-center justify-center rounded-2xl border border-white/10 px-4 py-3 text-sm font-medium text-muted/80 transition-all active:scale-[0.97] hover:text-fg hover:border-white/20;
+  }
+
+  /* Input */
+  .input {
+    @apply w-full rounded-2xl bg-surface px-4 py-3 text-sm text-fg outline-none transition-all border border-transparent focus:border-accent/40 focus:bg-surface;
+  }
+
+  /* Section label — ultra small, tracked */
+  .label {
+    @apply block text-[9px] font-bold uppercase tracking-[0.2em] text-muted/50;
+  }
+
+  /* Pill badge */
+  .pill {
+    @apply inline-flex items-center rounded-full bg-white/[0.05] px-2.5 py-0.5 text-xs font-medium text-muted/70;
+  }
+
+  /* Stat number — huge tabular */
+  .stat {
+    @apply font-black tabular-nums tracking-tight;
+  }
+}
+
+/* AI output */
+.prose-coach h1 { @apply text-xl font-bold mt-4 mb-2 text-fg; }
+.prose-coach h2 { @apply text-lg font-semibold mt-4 mb-1 text-fg; }
+.prose-coach h3 { @apply text-base font-semibold mt-3 mb-1; }
+.prose-coach p  { @apply my-2 text-sm leading-relaxed text-muted; }
+.prose-coach ul { @apply list-disc pl-5 my-2 text-sm space-y-1 text-muted; }
+.prose-coach strong { @apply text-fg font-semibold; }
+.prose-coach em { @apply text-muted not-italic; }
+
+/* Hide nav during active logging */
+.gym-logger .gym-bottom-nav { display: none !important; }

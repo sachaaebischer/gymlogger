@@ -1,0 +1,10 @@
+{
+  "$comment": "This file is LEGACY — the current sync (apps/fetcher/src/sync.ts) uses hardcoded direct REST adapters for Ultrahuman, Polar, Withings, and Garmin-via-MCP. The credentials for each adapter are read from ~/.openclaw/openclaw.json (mcp.servers section). This file is kept for reference but is not read at runtime.",
+  "sources": [
+    {
+      "name": "mock",
+      "enabled": false,
+      "note": "Test-only MCP source. Only used when running apps/fetcher/test/mock-mcp-server.ts manually."
+    }
+  ]
+}
